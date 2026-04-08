@@ -453,19 +453,35 @@ textarea::placeholder {
 <!-- 설정 모달 -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
-    <h2>API 키 설정</h2>
-    <input type="password" id="apiKeyInput" placeholder="Claude API Key 붙여넣기">
-    <div class="hint" style="line-height:1.8">
-      <b>Claude API 키 발급 방법 (1분 소요)</b><br><br>
-      1. 브라우저에서 접속:<br>
-      <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#4a6741; font-weight:600;">
-         console.anthropic.com/settings/keys</a><br>
-      2. Anthropic 계정으로 로그인<br>
-      3. <b>"Create Key"</b> 버튼 클릭<br>
-      4. 생성된 키(sk-ant-...)를 <b>복사</b><br>
-      5. 위 입력란에 <b>붙여넣기</b> 후 저장<br><br>
-      키는 이 기기에만 저장됩니다.
+    <h2>API 설정</h2>
+
+    <div class="section-title" style="margin-bottom:8px;">AI 선택</div>
+    <div class="option-group" style="margin-bottom:14px;">
+      <button class="option-btn" id="providerGemini" data-value="gemini" onclick="selectProvider('gemini')">Gemini</button>
+      <button class="option-btn" id="providerClaude" data-value="claude" onclick="selectProvider('claude')">Claude</button>
     </div>
+
+    <input type="password" id="apiKeyInput" placeholder="API Key 붙여넣기">
+
+    <div class="hint" style="line-height:1.8" id="geminiGuide">
+      <b>Gemini API 키 발급 (무료)</b><br><br>
+      1. <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4a6741; font-weight:600;">aistudio.google.com/apikey</a> 접속<br>
+      2. Google 계정 로그인<br>
+      3. <b>"API 키 만들기"</b> 클릭<br>
+      4. 생성된 키 복사 → 위에 붙여넣기<br><br>
+      ※ 무료 한도 초과 시: <a href="https://console.cloud.google.com/billing" target="_blank" style="color:#4a6741;">Google Cloud 결제</a> 설정 필요
+    </div>
+
+    <div class="hint" style="line-height:1.8; display:none;" id="claudeGuide">
+      <b>Claude API 키 발급</b><br><br>
+      1. <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#4a6741; font-weight:600;">console.anthropic.com/settings/keys</a> 접속<br>
+      2. Anthropic 계정 로그인<br>
+      3. <b>"Create Key"</b> 클릭<br>
+      4. 생성된 키(sk-ant-...) 복사 → 위에 붙여넣기
+    </div>
+
+    <div class="hint">키는 이 기기에만 저장됩니다.</div>
+
     <div class="modal-btns">
       <button class="cancel" onclick="closeSettings()">취소</button>
       <button class="save" onclick="saveSettings()">저장</button>
@@ -499,9 +515,23 @@ function setExample(key) {
   document.getElementById('situation').value = examples[key];
 }
 
+function selectProvider(p) {
+  localStorage.setItem('ai_provider', p);
+  document.getElementById('providerGemini').classList.toggle('active', p === 'gemini');
+  document.getElementById('providerClaude').classList.toggle('active', p === 'claude');
+  document.getElementById('geminiGuide').style.display = p === 'gemini' ? '' : 'none';
+  document.getElementById('claudeGuide').style.display = p === 'claude' ? '' : 'none';
+  const saved = localStorage.getItem(p === 'gemini' ? 'gemini_api_key' : 'claude_api_key') || '';
+  document.getElementById('apiKeyInput').value = saved;
+}
+
+function getProvider() {
+  return localStorage.getItem('ai_provider') || 'gemini';
+}
+
 function showSettings() {
-  const key = localStorage.getItem('claude_api_key') || '';
-  document.getElementById('apiKeyInput').value = key;
+  const provider = getProvider();
+  selectProvider(provider);
   document.getElementById('settingsModal').classList.add('show');
 }
 
@@ -511,11 +541,13 @@ function closeSettings() {
 
 function saveSettings() {
   const key = document.getElementById('apiKeyInput').value.trim();
+  const provider = getProvider();
+  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
   if (key) {
-    localStorage.setItem('claude_api_key', key);
+    localStorage.setItem(storageKey, key);
     showToast('API 키가 저장되었습니다');
   } else {
-    localStorage.removeItem('claude_api_key');
+    localStorage.removeItem(storageKey);
     showToast('API 키가 삭제되었습니다');
   }
   closeSettings();
@@ -563,7 +595,9 @@ ${situation}
 }
 
 async function generateMessage() {
-  const apiKey = localStorage.getItem('claude_api_key');
+  const provider = getProvider();
+  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
+  const apiKey = localStorage.getItem(storageKey);
   if (!apiKey) {
     showSettings();
     showToast('먼저 API 키를 설정해 주세요');
@@ -587,33 +621,48 @@ async function generateMessage() {
 
   try {
     const prompt = buildPrompt();
-    const url = 'https://api.anthropic.com/v1/messages';
+    let response, data, text;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      if (response.status === 401) {
-        throw new Error('API 키가 올바르지 않습니다. 설정에서 확인해 주세요.');
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'Gemini 요청 실패');
       }
-      throw new Error(err.error?.message || '요청 실패');
-    }
+      data = await response.json();
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-    const data = await response.json();
-    const text = data.content?.[0]?.text?.trim();
+    } else {
+      const url = 'https://api.anthropic.com/v1/messages';
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'Claude 요청 실패');
+      }
+      data = await response.json();
+      text = data.content?.[0]?.text?.trim();
+    }
 
     if (!text) {
       throw new Error('빈 응답이 반환되었습니다. 다시 시도해 주세요.');
@@ -656,7 +705,9 @@ async function copyMessage() {
 
 // 첫 실행 시 API 키 없으면 안내
 window.addEventListener('load', () => {
-  if (!localStorage.getItem('claude_api_key')) {
+  const provider = getProvider();
+  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
+  if (!localStorage.getItem(storageKey)) {
     setTimeout(() => showSettings(), 500);
   }
 });
