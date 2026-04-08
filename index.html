@@ -819,22 +819,36 @@ function closeBanner() {
   localStorage.setItem('install_dismissed', 'true');
 }
 
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
 function showInstallGuide() {
   if (window.matchMedia('(display-mode: standalone)').matches) {
     showToast('이미 앱으로 실행 중입니다');
     return;
   }
-  const isIOS = /iPhone|iPad/.test(navigator.userAgent);
-  const isMobile = 'ontouchstart' in window;
-  let msg;
-  if (isIOS) {
-    msg = '홈 화면에 추가하는 방법:\n\n1. 하단 공유 버튼 (□↑) 탭\n2. "홈 화면에 추가" 선택\n3. "추가" 탭';
-  } else if (isMobile) {
-    msg = '홈 화면에 추가하는 방법:\n\n1. 브라우저 메뉴 (⋮) 탭\n2. "홈 화면에 추가" 선택\n3. "추가" 탭';
-  } else {
-    msg = '바탕화면 바로가기 만드는 방법:\n\n1. 브라우저 주소창 오른쪽 설치 아이콘 클릭\n또는\n1. 브라우저 메뉴 → "앱 설치" 또는 "바로가기 만들기"';
+  // Android Chrome: 자동 설치 팝업
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(result => {
+      if (result.outcome === 'accepted') {
+        showToast('앱이 설치되었습니다!');
+        document.getElementById('installBtn').style.display = 'none';
+      }
+      deferredPrompt = null;
+    });
+    return;
   }
-  alert(msg);
+  // iPhone 등 자동 설치 불가한 경우 안내
+  const isIOS = /iPhone|iPad/.test(navigator.userAgent);
+  if (isIOS) {
+    alert('홈 화면에 추가하는 방법:\n\n1. 하단 공유 버튼 (□↑) 탭\n2. "홈 화면에 추가" 선택\n3. "추가" 탭');
+  } else {
+    alert('홈 화면에 추가하는 방법:\n\n1. 브라우저 메뉴 (⋮) 탭\n2. "홈 화면에 추가" 선택');
+  }
 }
 
 async function shareLink() {
