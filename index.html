@@ -470,7 +470,7 @@ textarea::placeholder {
       <button class="cancel" onclick="closeSettings()">취소</button>
       <button class="save" onclick="saveSettings()">저장</button>
     </div>
-    <div style="margin-top:14px; border-top:1px solid #e0d8d0; padding-top:14px;">
+    <div id="shareSection" style="margin-top:14px; border-top:1px solid #e0d8d0; padding-top:14px;">
       <button class="save" style="width:100%; background:#6b8f5e;" onclick="shareLink()">가족에게 공유 링크 만들기</button>
       <div class="hint" style="margin-top:6px;">링크를 열면 API 키가 자동 설정됩니다.</div>
     </div>
@@ -697,7 +697,14 @@ async function copyMessage() {
   }
 }
 
+const SHARE_PIN = '0408';
+
 async function shareLink() {
+  const input = prompt('공유 비밀번호를 입력하세요:');
+  if (input !== SHARE_PIN) {
+    showToast('비밀번호가 틀렸습니다');
+    return;
+  }
   const provider = getProvider();
   const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
   const key = localStorage.getItem(storageKey);
@@ -725,11 +732,17 @@ window.addEventListener('load', () => {
       if (provider && key) {
         localStorage.setItem('ai_provider', provider);
         localStorage.setItem(provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key', key);
+        localStorage.setItem('is_shared', 'true');
         history.replaceState(null, '', location.pathname);
         showToast('API 키가 자동 설정되었습니다!');
         return;
       }
     } catch {}
+  }
+  // 공유받은 사람은 공유 버튼 숨기기
+  if (localStorage.getItem('is_shared') === 'true') {
+    const el = document.getElementById('shareSection');
+    if (el) el.style.display = 'none';
   }
   const provider = getProvider();
   const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
