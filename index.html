@@ -783,7 +783,8 @@ async function shareLink() {
     showToast('먼저 API 키를 저장해 주세요');
     return;
   }
-  const encoded = btoa(provider + ':' + key);
+  const expire = Date.now() + 10 * 60 * 1000; // 10분 후 만료
+  const encoded = btoa(provider + ':' + key + ':' + expire);
   const url = location.origin + location.pathname + '#k=' + encoded;
   try {
     await navigator.clipboard.writeText(url);
@@ -799,12 +800,17 @@ window.addEventListener('load', () => {
   if (hash.startsWith('#k=')) {
     try {
       const decoded = atob(hash.substring(3));
-      const [provider, key] = [decoded.split(':')[0], decoded.substring(decoded.indexOf(':') + 1)];
-      if (provider && key) {
+      const parts = decoded.split(':');
+      const provider = parts[0];
+      const expire = parseInt(parts[parts.length - 1]);
+      const key = parts.slice(1, -1).join(':');
+      history.replaceState(null, '', location.pathname);
+      if (expire && Date.now() > expire) {
+        showToast('링크가 만료되었습니다. 새 링크를 요청하세요.');
+      } else if (provider && key) {
         localStorage.setItem('ai_provider', provider);
         localStorage.setItem(provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key', key);
         localStorage.setItem('is_shared', 'true');
-        history.replaceState(null, '', location.pathname);
         showToast('API 키가 자동 설정되었습니다!');
         return;
       }
