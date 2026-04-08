@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#4a6741">
+<title>격식 메시지 작성기</title>
+<link rel="manifest" href="manifest.json">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, 'Malgun Gothic', '맑은 고딕', sans-serif;
+  background: #f5f0eb;
+  color: #333;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.header {
+  background: linear-gradient(135deg, #4a6741, #6b8f5e);
+  color: white;
+  padding: 18px 20px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.section {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4a6741;
+  margin-bottom: 10px;
+}
+
+.option-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.option-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 6px;
+  border: 2px solid #e0d8d0;
+  border-radius: 10px;
+  background: white;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.option-btn.active {
+  border-color: #4a6741;
+  background: #f0f5ee;
+  color: #4a6741;
+  font-weight: 600;
+}
+
+.option-btn .sub {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.option-btn.active .sub {
+  color: #6b8f5e;
+}
+
+textarea {
+  width: 100%;
+  border: 2px solid #e0d8d0;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 120px;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #333;
+}
+
+textarea:focus {
+  border-color: #4a6741;
+}
+
+textarea::placeholder {
+  color: #bbb;
+}
+
+.btn-generate {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #4a6741, #6b8f5e);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s;
+  margin-bottom: 12px;
+}
+
+.btn-generate:active {
+  opacity: 0.8;
+}
+
+.btn-generate:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.result-area {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  display: none;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.result-header .section-title {
+  margin-bottom: 0;
+}
+
+.char-count {
+  font-size: 12px;
+  color: #999;
+}
+
+.result-text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #4a6741;
+  border-radius: 10px;
+  background: white;
+  color: #4a6741;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.btn-secondary:active {
+  background: #f0f5ee;
+}
+
+.btn-copy {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #4a6741;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.btn-copy:active {
+  opacity: 0.8;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #4a6741;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e0d8d0;
+  border-top-color: #4a6741;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 14px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.settings-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.header { position: relative; }
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.modal h2 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.modal input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0d8d0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.modal input:focus {
+  border-color: #4a6741;
+}
+
+.modal .hint {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.modal-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-btns button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.modal-btns .cancel {
+  background: #f5f0eb;
+  border: none;
+  color: #666;
+}
+
+.modal-btns .save {
+  background: #4a6741;
+  border: none;
+  color: white;
+}
+
+.examples {
+  margin-top: 8px;
+}
+
+.example-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 4px;
+  background: #f5f0eb;
+  border: 1px solid #e0d8d0;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.example-btn:active {
+  background: #e8e0d8;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>AI 격식 메시지 작성기</h1>
+  <button class="settings-btn" onclick="showSettings()">&#9881;</button>
+</div>
+
+<div class="container">
+  <!-- 격식 수준 -->
+  <div class="section">
+    <div class="section-title">격식 수준</div>
+    <div class="option-group" id="formalityGroup">
+      <button class="option-btn" data-value="최고" onclick="selectOption('formality', this)">
+        최고<span class="sub">스님, 어르신</span>
+      </button>
+      <button class="option-btn active" data-value="높음" onclick="selectOption('formality', this)">
+        높음<span class="sub">상사, 선배</span>
+      </button>
+      <button class="option-btn" data-value="보통" onclick="selectOption('formality', this)">
+        보통<span class="sub">동료, 지인</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 메시지 길이 -->
+  <div class="section">
+    <div class="section-title">메시지 길이</div>
+    <div class="option-group" id="lengthGroup">
+      <button class="option-btn" data-value="짧게" onclick="selectOption('length', this)">
+        짧게<span class="sub">3~5줄</span>
+      </button>
+      <button class="option-btn active" data-value="보통" onclick="selectOption('length', this)">
+        보통<span class="sub">7~12줄</span>
+      </button>
+      <button class="option-btn" data-value="길게" onclick="selectOption('length', this)">
+        길게<span class="sub">15줄+</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 상황 설명 -->
+  <div class="section">
+    <div class="section-title">상황 설명</div>
+    <textarea id="situation" placeholder="어떤 상황인지 자유롭게 적어주세요.&#10;예: 거래처 사장님 만나고 온 후 감사 인사"></textarea>
+    <div class="examples">
+      <button class="example-btn" onclick="setExample('visit')">방문 감사</button>
+      <button class="example-btn" onclick="setExample('greeting')">안부 인사</button>
+      <button class="example-btn" onclick="setExample('congrats')">축하</button>
+      <button class="example-btn" onclick="setExample('request')">부탁</button>
+      <button class="example-btn" onclick="setExample('apology')">사과</button>
+    </div>
+  </div>
+
+  <!-- 생성 버튼 -->
+  <button class="btn-generate" id="generateBtn" onclick="generateMessage()">메시지 생성</button>
+
+  <!-- 결과 -->
+  <div class="result-area" id="resultArea">
+    <div class="result-header">
+      <div class="section-title">생성된 메시지</div>
+      <span class="char-count" id="charCount"></span>
+    </div>
+    <div class="result-text" id="resultText"></div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="generateMessage()">다시 생성</button>
+      <button class="btn-copy" onclick="copyMessage()">복사하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<!-- 설정 모달 -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>API 설정</h2>
+    <input type="password" id="apiKeyInput" placeholder="Gemini API Key 입력">
+    <div class="hint">
+      Google AI Studio에서 무료 API 키를 발급받을 수 있습니다.<br>
+      키는 이 기기에만 저장되며 외부로 전송되지 않습니다.
+    </div>
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeSettings()">취소</button>
+      <button class="save" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 상태
+let formality = '높음';
+let length = '보통';
+
+// 예시 텍스트
+const examples = {
+  visit: '오늘 오전에 OOO님을 찾아뵙고 인사드렸음. 바쁘신 중에 시간 내어 좋은 말씀 해주심. 보내는 사람: 홍길동',
+  greeting: '오랜만에 OOO 선배님께 안부 인사를 드리고 싶음. 지난번 만났을 때 조언해주신 것이 큰 도움이 되었음. 보내는 사람: 홍길동',
+  congrats: 'OOO님이 승진하셨다는 소식을 들음. 축하 인사를 전하고 싶음. 보내는 사람: 홍길동',
+  request: 'OOO 부장님께 프로젝트 관련 자문을 구하고 싶음. 다음 주 중 시간을 내주실 수 있는지 여쭙고 싶음. 보내는 사람: 홍길동',
+  apology: '약속 시간에 늦어서 OOO님께 사과 인사를 드리고 싶음. 교통 사정으로 30분 지각했음. 보내는 사람: 홍길동'
+};
+
+function selectOption(type, btn) {
+  const group = btn.parentElement;
+  group.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (type === 'formality') formality = btn.dataset.value;
+  if (type === 'length') length = btn.dataset.value;
+}
+
+function setExample(key) {
+  document.getElementById('situation').value = examples[key];
+}
+
+function showSettings() {
+  const key = localStorage.getItem('gemini_api_key') || '';
+  document.getElementById('apiKeyInput').value = key;
+  document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('show');
+}
+
+function saveSettings() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (key) {
+    localStorage.setItem('gemini_api_key', key);
+    showToast('API 키가 저장되었습니다');
+  } else {
+    localStorage.removeItem('gemini_api_key');
+    showToast('API 키가 삭제되었습니다');
+  }
+  closeSettings();
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function buildPrompt() {
+  const situation = document.getElementById('situation').value.trim();
+
+  const formalityDesc = {
+    '최고': '최고 수준의 격식. 스님, 어르신, 큰 은인에게 보내는 수준. 존칭과 한자어 표현 적절히 사용. 겸양의 표현 사용.',
+    '높음': '높은 격식. 직장 상사, 선배, 은사님 등에게. 정중하되 자연스러운 느낌.',
+    '보통': '보통 격식. 동료, 지인에게. 존댓말이지만 따뜻하고 편안한 느낌.'
+  };
+
+  const lengthDesc = {
+    '짧게': '3~5줄 분량. 핵심만 간결하게.',
+    '보통': '7~12줄 분량. 적당한 길이로 정성이 느껴지게.',
+    '길게': '15줄 이상. 충분히 마음을 담아 정성스럽게.'
+  };
+
+  return `당신은 한국어 격식 메시지 작성 전문가입니다.
+아래 상황을 바탕으로 문자메시지나 카카오톡으로 보낼 메시지를 작성해 주세요.
+
+[격식 수준] ${formalityDesc[formality]}
+[메시지 길이] ${lengthDesc[length]}
+
+[상황 설명]
+${situation}
+
+작성 규칙:
+1. 상황을 파악하여 적절한 인사 메시지를 자연스럽게 작성
+2. 문자/카톡에 바로 복사해서 보낼 수 있는 형태로 작성
+3. 과도한 수식어는 피하되, 진심이 느껴지는 문체
+4. 적절한 줄바꿈으로 가독성 확보
+5. 서명이나 날짜는 넣지 않음
+6. 메시지 본문만 출력 (설명이나 부가 안내 없이)
+7. 반드시 한국어로만 작성`;
+}
+
+async function generateMessage() {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    showSettings();
+    showToast('먼저 API 키를 설정해 주세요');
+    return;
+  }
+
+  const situation = document.getElementById('situation').value.trim();
+  if (!situation) {
+    showToast('상황 설명을 입력해 주세요');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  const resultArea = document.getElementById('resultArea');
+  const resultText = document.getElementById('resultText');
+
+  btn.disabled = true;
+  btn.textContent = '';
+  resultArea.style.display = 'block';
+  resultText.innerHTML = '<div class="loading"><div class="spinner"></div>AI가 메시지를 작성하고 있습니다...</div>';
+
+  try {
+    const prompt = buildPrompt();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      if (response.status === 400 || response.status === 403) {
+        throw new Error('API 키가 올바르지 않습니다. 설정에서 확인해 주세요.');
+      }
+      throw new Error(err.error?.message || '요청 실패');
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    if (!text) {
+      throw new Error('빈 응답이 반환되었습니다. 다시 시도해 주세요.');
+    }
+
+    resultText.textContent = text;
+    const charCount = text.replace(/[\n\s]/g, '').length;
+    document.getElementById('charCount').textContent = `${charCount}자`;
+
+  } catch (e) {
+    resultText.textContent = e.message;
+    document.getElementById('charCount').textContent = '';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '메시지 생성';
+}
+
+async function copyMessage() {
+  const text = document.getElementById('resultText').textContent;
+  if (!text || text.includes('AI가 메시지를')) {
+    showToast('먼저 메시지를 생성해 주세요');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('클립보드에 복사되었습니다');
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('클립보드에 복사되었습니다');
+  }
+}
+
+// 첫 실행 시 API 키 없으면 안내
+window.addEventListener('load', () => {
+  if (!localStorage.getItem('gemini_api_key')) {
+    setTimeout(() => showSettings(), 500);
+  }
+});
+</script>
+
+</body>
+</html>
