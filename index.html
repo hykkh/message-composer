@@ -375,6 +375,46 @@ textarea::placeholder {
 .example-btn:active {
   background: #e8e0d8;
 }
+
+.install-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 16px 20px;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
+  z-index: 150;
+  display: none;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.install-banner .banner-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.install-banner .banner-text b {
+  color: #4a6741;
+}
+
+.install-banner .banner-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #999;
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -429,6 +469,12 @@ textarea::placeholder {
       <button class="btn-copy" onclick="copyMessage()">복사하기</button>
     </div>
   </div>
+</div>
+
+<!-- 홈 화면 추가 안내 -->
+<div class="install-banner" id="installBanner">
+  <button class="banner-close" onclick="closeBanner()">&times;</button>
+  <div class="banner-text" id="bannerText"></div>
 </div>
 
 <!-- 토스트 -->
@@ -699,6 +745,31 @@ async function copyMessage() {
 
 const SHARE_PIN = '0219';
 
+// 홈 화면 추가 안내
+function showInstallBanner() {
+  if (localStorage.getItem('install_dismissed')) return;
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (!('ontouchstart' in window)) return; // 모바일만
+
+  const banner = document.getElementById('installBanner');
+  const text = document.getElementById('bannerText');
+  const isIOS = /iPhone|iPad/.test(navigator.userAgent);
+
+  if (isIOS) {
+    text.innerHTML = '홈 화면에 추가하면 앱처럼 사용할 수 있습니다.<br>' +
+      '하단 <b>공유 버튼</b> → <b>"홈 화면에 추가"</b>';
+  } else {
+    text.innerHTML = '홈 화면에 추가하면 앱처럼 사용할 수 있습니다.<br>' +
+      '브라우저 <b>메뉴(⋮)</b> → <b>"홈 화면에 추가"</b>';
+  }
+  banner.style.display = 'block';
+}
+
+function closeBanner() {
+  document.getElementById('installBanner').style.display = 'none';
+  localStorage.setItem('install_dismissed', 'true');
+}
+
 async function shareLink() {
   const input = prompt('공유 비밀번호를 입력하세요:');
   if (input !== SHARE_PIN) {
@@ -748,6 +819,8 @@ window.addEventListener('load', () => {
   const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
   if (!localStorage.getItem(storageKey)) {
     setTimeout(() => showSettings(), 500);
+  } else {
+    setTimeout(() => showInstallBanner(), 1500);
   }
 });
 </script>
