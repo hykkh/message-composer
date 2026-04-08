@@ -425,7 +425,7 @@ textarea::placeholder {
     </div>
     <div class="result-text" id="resultText"></div>
     <div class="btn-row">
-      <button class="btn-secondary" onclick="generateMessage()">다시 생성</button>
+      <button class="btn-secondary" onclick="generateMessage()">&#8635; 다시 생성</button>
       <button class="btn-copy" onclick="copyMessage()">복사하기</button>
     </div>
   </div>
@@ -606,19 +606,29 @@ async function generateMessage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 8000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 8000 },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
         })
       });
       if (!response.ok) {
         const err = await response.json();
         const msg = err.error?.message || 'Gemini 요청 실패';
-        if (msg.includes('quota') || msg.includes('limit')) {
+        if (msg.includes('quota') || msg.includes('limit') || msg.includes('spend')) {
           throw new Error('Gemini 무료 한도 초과입니다.\n설정에서 Claude로 전환하거나,\nGoogle Cloud 결제를 연결해 주세요.');
         }
         throw new Error(msg);
       }
       data = await response.json();
       text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      // safety filter로 차단된 경우
+      if (!text && data.candidates?.[0]?.finishReason === 'SAFETY') {
+        throw new Error('안전 필터에 의해 차단되었습니다. 다시 생성해 주세요.');
+      }
 
     } else {
       const url = 'https://api.anthropic.com/v1/messages';
