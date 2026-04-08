@@ -401,22 +401,6 @@ textarea::placeholder {
     </div>
   </div>
 
-  <!-- 메시지 길이 -->
-  <div class="section">
-    <div class="section-title">메시지 길이</div>
-    <div class="option-group" id="lengthGroup">
-      <button class="option-btn" data-value="짧게" onclick="selectOption('length', this)">
-        짧게<span class="sub">3~5줄</span>
-      </button>
-      <button class="option-btn active" data-value="보통" onclick="selectOption('length', this)">
-        보통<span class="sub">7~12줄</span>
-      </button>
-      <button class="option-btn" data-value="길게" onclick="selectOption('length', this)">
-        길게<span class="sub">15줄+</span>
-      </button>
-    </div>
-  </div>
-
   <!-- 상황 설명 -->
   <div class="section">
     <div class="section-title">상황 설명</div>
@@ -492,7 +476,6 @@ textarea::placeholder {
 <script>
 // 상태
 let formality = '높음';
-let length = '보통';
 
 // 예시 텍스트
 const examples = {
@@ -508,7 +491,6 @@ function selectOption(type, btn) {
   group.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (type === 'formality') formality = btn.dataset.value;
-  if (type === 'length') length = btn.dataset.value;
 }
 
 function setExample(key) {
@@ -569,29 +551,23 @@ function buildPrompt() {
     '보통': '보통 격식. 동료, 지인에게. 존댓말이지만 따뜻하고 편안한 느낌.'
   };
 
-  const lengthDesc = {
-    '짧게': '3~5줄 분량. 핵심만 간결하게.',
-    '보통': '7~12줄 분량. 적당한 길이로 정성이 느껴지게.',
-    '길게': '15줄 이상. 충분히 마음을 담아 정성스럽게.'
-  };
-
   return `당신은 한국어 격식 메시지 작성 전문가입니다.
 아래 상황을 바탕으로 문자메시지나 카카오톡으로 보낼 메시지를 작성해 주세요.
 
 [격식 수준] ${formalityDesc[formality]}
-[메시지 길이] ${lengthDesc[length]}
 
 [상황 설명]
 ${situation}
 
 작성 규칙:
 1. 상황을 파악하여 적절한 인사 메시지를 자연스럽게 작성
-2. 문자/카톡에 바로 복사해서 보낼 수 있는 형태로 작성
-3. 과도한 수식어는 피하되, 진심이 느껴지는 문체
-4. 적절한 줄바꿈으로 가독성 확보
-5. 서명이나 날짜는 넣지 않음
-6. 메시지 본문만 출력 (설명이나 부가 안내 없이)
-7. 반드시 한국어로만 작성`;
+2. 상황의 복잡도에 맞게 적절한 길이로 작성 (짧은 안부는 짧게, 복잡한 상황은 충분히 길게)
+3. 문자/카톡에 바로 복사해서 보낼 수 있는 형태로 작성
+4. 과도한 수식어는 피하되, 진심이 느껴지는 문체
+5. 적절한 줄바꿈으로 가독성 확보
+6. 서명이나 날짜는 넣지 않음
+7. 메시지 본문만 출력 (설명이나 부가 안내 없이)
+8. 반드시 한국어로만 작성`;
 }
 
 async function generateMessage() {
@@ -630,7 +606,7 @@ async function generateMessage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 8000 }
         })
       });
       if (!response.ok) {
@@ -656,7 +632,7 @@ async function generateMessage() {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
+          max_tokens: 8000,
           messages: [{ role: 'user', content: prompt }]
         })
       });
