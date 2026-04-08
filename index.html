@@ -489,19 +489,28 @@ textarea::placeholder {
 
     <div class="section-title" style="margin-bottom:8px;">AI 선택</div>
     <div class="option-group" style="margin-bottom:14px;">
+      <button class="option-btn" id="providerGroq" data-value="groq" onclick="selectProvider('groq')">Groq (무료)</button>
       <button class="option-btn" id="providerGemini" data-value="gemini" onclick="selectProvider('gemini')">Gemini</button>
       <button class="option-btn" id="providerClaude" data-value="claude" onclick="selectProvider('claude')">Claude</button>
     </div>
 
     <input type="password" id="apiKeyInput" placeholder="API Key 붙여넣기">
 
-    <div class="hint" style="line-height:1.8" id="geminiGuide">
-      <b>Gemini API 키 발급 (무료)</b><br><br>
+    <div class="hint" style="line-height:1.8" id="groqGuide">
+      <b>Groq API 키 발급 (완전 무료, 결제 없음)</b><br><br>
+      1. <a href="https://console.groq.com/keys" target="_blank" style="color:#4a6741; font-weight:600;">console.groq.com/keys</a> 접속<br>
+      2. Google 계정으로 간편 가입<br>
+      3. <b>"Create API Key"</b> 클릭<br>
+      4. 생성된 키(gsk_...) 복사 → 위에 붙여넣기<br><br>
+      결제 등록 없이 완전 무료!
+    </div>
+
+    <div class="hint" style="line-height:1.8; display:none;" id="geminiGuide">
+      <b>Gemini API 키 발급</b><br><br>
       1. <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4a6741; font-weight:600;">aistudio.google.com/apikey</a> 접속<br>
       2. Google 계정 로그인<br>
       3. <b>"API 키 만들기"</b> 클릭<br>
-      4. 생성된 키 복사 → 위에 붙여넣기<br><br>
-      ※ 무료 한도 초과 시: <a href="https://console.cloud.google.com/billing" target="_blank" style="color:#4a6741;">Google Cloud 결제</a> 설정 필요
+      4. 생성된 키 복사 → 위에 붙여넣기
     </div>
 
     <div class="hint" style="line-height:1.8; display:none;" id="claudeGuide">
@@ -551,16 +560,18 @@ function setExample(key) {
 
 function selectProvider(p) {
   localStorage.setItem('ai_provider', p);
+  document.getElementById('providerGroq').classList.toggle('active', p === 'groq');
   document.getElementById('providerGemini').classList.toggle('active', p === 'gemini');
   document.getElementById('providerClaude').classList.toggle('active', p === 'claude');
+  document.getElementById('groqGuide').style.display = p === 'groq' ? '' : 'none';
   document.getElementById('geminiGuide').style.display = p === 'gemini' ? '' : 'none';
   document.getElementById('claudeGuide').style.display = p === 'claude' ? '' : 'none';
-  const saved = localStorage.getItem(p === 'gemini' ? 'gemini_api_key' : 'claude_api_key') || '';
+  const saved = localStorage.getItem(p + '_api_key') || '';
   document.getElementById('apiKeyInput').value = saved;
 }
 
 function getProvider() {
-  return localStorage.getItem('ai_provider') || 'gemini';
+  return localStorage.getItem('ai_provider') || 'groq';
 }
 
 function showSettings() {
@@ -576,7 +587,7 @@ function closeSettings() {
 function saveSettings() {
   const key = document.getElementById('apiKeyInput').value.trim();
   const provider = getProvider();
-  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
+  const storageKey = provider + '_api_key';
   if (key) {
     localStorage.setItem(storageKey, key);
     showToast('API 키가 저장되었습니다');
@@ -624,8 +635,7 @@ ${situation}
 
 async function generateMessage() {
   const provider = getProvider();
-  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
-  const apiKey = localStorage.getItem(storageKey);
+  const apiKey = localStorage.getItem(provider + '_api_key');
   if (!apiKey) {
     showSettings();
     showToast('먼저 API 키를 설정해 주세요');
@@ -651,7 +661,29 @@ async function generateMessage() {
     const prompt = buildPrompt();
     let response, data, text;
 
-    if (provider === 'gemini') {
+    if (provider === 'groq') {
+      const url = 'https://api.groq.com/openai/v1/chat/completions';
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 8000
+        })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'Groq 요청 실패');
+      }
+      data = await response.json();
+      text = data.choices?.[0]?.message?.content?.trim();
+
+    } else if (provider === 'gemini') {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       response = await fetch(url, {
         method: 'POST',
@@ -669,15 +701,10 @@ async function generateMessage() {
       });
       if (!response.ok) {
         const err = await response.json();
-        const msg = err.error?.message || 'Gemini 요청 실패';
-        if (msg.includes('quota') || msg.includes('limit') || msg.includes('spend')) {
-          throw new Error('Gemini 무료 한도 초과입니다.\n설정에서 Claude로 전환하거나,\nGoogle Cloud 결제를 연결해 주세요.');
-        }
-        throw new Error(msg);
+        throw new Error(err.error?.message || 'Gemini 요청 실패');
       }
       data = await response.json();
       text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      // safety filter로 차단된 경우
       if (!text && data.candidates?.[0]?.finishReason === 'SAFETY') {
         throw new Error('안전 필터에 의해 차단되었습니다. 다시 생성해 주세요.');
       }
@@ -819,8 +846,7 @@ window.addEventListener('load', () => {
     if (el) el.style.display = 'none';
   }
   const provider = getProvider();
-  const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
-  if (!localStorage.getItem(storageKey)) {
+  if (!localStorage.getItem(provider + '_api_key')) {
     setTimeout(() => showSettings(), 500);
   } else {
     setTimeout(() => showInstallBanner(), 1500);
