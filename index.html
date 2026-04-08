@@ -422,6 +422,7 @@ textarea::placeholder {
 <body>
 
 <div class="header">
+  <button class="settings-btn" style="left:16px; right:auto;" id="installBtn" onclick="showInstallGuide()">&#10515;</button>
   <h1>H 메시지 작성기</h1>
   <button class="settings-btn" onclick="showSettings()">&#9881;</button>
 </div>
@@ -818,6 +819,24 @@ function closeBanner() {
   localStorage.setItem('install_dismissed', 'true');
 }
 
+function showInstallGuide() {
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    showToast('이미 앱으로 실행 중입니다');
+    return;
+  }
+  const isIOS = /iPhone|iPad/.test(navigator.userAgent);
+  const isMobile = 'ontouchstart' in window;
+  let msg;
+  if (isIOS) {
+    msg = '홈 화면에 추가하는 방법:\n\n1. 하단 공유 버튼 (□↑) 탭\n2. "홈 화면에 추가" 선택\n3. "추가" 탭';
+  } else if (isMobile) {
+    msg = '홈 화면에 추가하는 방법:\n\n1. 브라우저 메뉴 (⋮) 탭\n2. "홈 화면에 추가" 선택\n3. "추가" 탭';
+  } else {
+    msg = '바탕화면 바로가기 만드는 방법:\n\n1. 브라우저 주소창 오른쪽 설치 아이콘 클릭\n또는\n1. 브라우저 메뉴 → "앱 설치" 또는 "바로가기 만들기"';
+  }
+  alert(msg);
+}
+
 async function shareLink() {
   const input = prompt('공유 비밀번호를 입력하세요:');
   if (input !== SHARE_PIN) {
@@ -863,6 +882,11 @@ window.addEventListener('load', () => {
   if (localStorage.getItem('is_shared') === 'true') {
     const el = document.getElementById('shareSection');
     if (el) el.style.display = 'none';
+  }
+  // 이미 앱으로 실행 중이면 설치 버튼 숨기기
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    const ib = document.getElementById('installBtn');
+    if (ib) ib.style.display = 'none';
   }
   const provider = getProvider();
   if (!localStorage.getItem(provider + '_api_key')) {
