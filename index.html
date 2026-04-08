@@ -624,36 +624,25 @@ async function generateMessage() {
     let response, data, text;
 
     if (provider === 'gemini') {
-      // 모델 우선순위: flash-lite(무료 한도 큼) → flash
-      const models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-      let lastError = '';
-
-      for (const model of models) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
-          })
-        });
-        if (response.ok) {
-          data = await response.json();
-          text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          break;
-        } else {
-          const err = await response.json();
-          lastError = err.error?.message || 'Gemini 요청 실패';
-          if (response.status !== 429) {
-            throw new Error(`[${model}] ${lastError}`);
-          }
-          // 429면 다음 모델 시도
-        }
-      }
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      });
       if (!response.ok) {
-        throw new Error(lastError);
+        const err = await response.json();
+        const msg = err.error?.message || 'Gemini 요청 실패';
+        if (msg.includes('quota') || msg.includes('limit')) {
+          throw new Error('Gemini 무료 한도 초과입니다.\n설정에서 Claude로 전환하거나,\nGoogle Cloud 결제를 연결해 주세요.');
+        }
+        throw new Error(msg);
       }
+      data = await response.json();
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     } else {
       const url = 'https://api.anthropic.com/v1/messages';
