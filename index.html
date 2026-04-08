@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#4a6741">
-<title>격식 메시지 작성기</title>
+<title>H 메시지 작성기</title>
 <link rel="manifest" href="manifest.json">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -380,7 +380,7 @@ textarea::placeholder {
 <body>
 
 <div class="header">
-  <h1>AI 격식 메시지 작성기</h1>
+  <h1>H 메시지 작성기</h1>
   <button class="settings-btn" onclick="showSettings()">&#9881;</button>
 </div>
 
@@ -453,10 +453,17 @@ textarea::placeholder {
 <!-- 설정 모달 -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
-    <h2>API 설정</h2>
-    <input type="password" id="apiKeyInput" placeholder="Gemini API Key 입력">
-    <div class="hint">
-      Google AI Studio에서 무료 API 키를 발급받을 수 있습니다.<br>
+    <h2>API 키 설정</h2>
+    <input type="password" id="apiKeyInput" placeholder="Gemini API Key 붙여넣기">
+    <div class="hint" style="line-height:1.8">
+      <b>API 키 발급 방법 (무료, 1분 소요)</b><br><br>
+      1. 스마트폰 브라우저에서 접속:<br>
+      <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4a6741; font-weight:600;">
+         aistudio.google.com/apikey</a><br>
+      2. Google 계정으로 로그인<br>
+      3. <b>"API 키 만들기"</b> 버튼 클릭<br>
+      4. 생성된 키를 <b>복사</b><br>
+      5. 위 입력란에 <b>붙여넣기</b> 후 저장<br><br>
       키는 이 기기에만 저장되며 외부로 전송되지 않습니다.
     </div>
     <div class="modal-btns">

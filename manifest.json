@@ -1,6 +1,6 @@
 {
-  "name": "AI 격식 메시지 작성기",
-  "short_name": "메시지작성",
+  "name": "H 메시지 작성기",
+  "short_name": "H메시지",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f5f0eb",
