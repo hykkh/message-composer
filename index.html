@@ -552,6 +552,43 @@ textarea::placeholder {
 </div>
 
 <script>
+// ── API 키 암호화 (AES-GCM, 기기별 랜덤 키) ─────────────────
+const _DK = '_dk'; // device key storage name
+
+async function _deviceKey() {
+  let raw = localStorage.getItem(_DK);
+  if (!raw) {
+    const b = crypto.getRandomValues(new Uint8Array(32));
+    raw = btoa(String.fromCharCode(...b));
+    localStorage.setItem(_DK, raw);
+  }
+  const bytes = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+  return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function encApiKey(plain) {
+  if (!plain) return '';
+  const key = await _deviceKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key,
+    new TextEncoder().encode(plain));
+  return 'enc:' + btoa(String.fromCharCode(...iv)) + ':' + btoa(String.fromCharCode(...new Uint8Array(ct)));
+}
+
+async function decApiKey(stored) {
+  if (!stored) return '';
+  if (!stored.startsWith('enc:')) return stored; // 기존 평문 fallback
+  try {
+    const [, ivB64, ctB64] = stored.split(':');
+    const key = await _deviceKey();
+    const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+    const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    return new TextDecoder().decode(plain);
+  } catch { return ''; }
+}
+// ─────────────────────────────────────────────────────────────
+
 // 상태
 let formality = '높음';
 let msgLength = '보통';
@@ -586,7 +623,7 @@ function selectProvider(p) {
   document.getElementById('geminiGuide').style.display = p === 'gemini' ? '' : 'none';
   document.getElementById('claudeGuide').style.display = p === 'claude' ? '' : 'none';
   const saved = localStorage.getItem(p + '_api_key') || '';
-  document.getElementById('apiKeyInput').value = saved;
+  decApiKey(saved).then(plain => { document.getElementById('apiKeyInput').value = plain; });
 }
 
 function getProvider() {
@@ -603,12 +640,13 @@ function closeSettings() {
   document.getElementById('settingsModal').classList.remove('show');
 }
 
-function saveSettings() {
+async function saveSettings() {
   const key = document.getElementById('apiKeyInput').value.trim();
   const provider = getProvider();
   const storageKey = provider + '_api_key';
   if (key) {
-    localStorage.setItem(storageKey, key);
+    const enc = await encApiKey(key);
+    localStorage.setItem(storageKey, enc);
     showToast('API 키가 저장되었습니다');
   } else {
     localStorage.removeItem(storageKey);
@@ -666,7 +704,7 @@ ${situation}
 
 async function generateMessage() {
   const provider = getProvider();
-  const apiKey = localStorage.getItem(provider + '_api_key');
+  const apiKey = await decApiKey(localStorage.getItem(provider + '_api_key') || '');
   if (!apiKey) {
     showSettings();
     showToast('먼저 API 키를 설정해 주세요');
@@ -884,7 +922,7 @@ async function shareLink() {
   }
   const provider = getProvider();
   const storageKey = provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key';
-  const key = localStorage.getItem(storageKey);
+  const key = await decApiKey(localStorage.getItem(storageKey) || '');
   if (!key) {
     showToast('먼저 API 키를 저장해 주세요');
     return;
@@ -910,13 +948,23 @@ window.addEventListener('load', () => {
       history.replaceState(null, '', location.pathname);
       if (provider && key) {
         localStorage.setItem('ai_provider', provider);
-        localStorage.setItem(provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key', key);
+        encApiKey(key).then(enc => {
+          localStorage.setItem(provider === 'gemini' ? 'gemini_api_key' : 'claude_api_key', enc);
+        });
         localStorage.setItem('is_shared', 'true');
         showToast('API 키가 자동 설정되었습니다!');
         return;
       }
     } catch {}
   }
+  // 기존 평문 API 키 → 암호화 마이그레이션
+  for (const p of ['groq', 'gemini', 'claude']) {
+    const stored = localStorage.getItem(p + '_api_key');
+    if (stored && !stored.startsWith('enc:')) {
+      encApiKey(stored).then(enc => localStorage.setItem(p + '_api_key', enc));
+    }
+  }
+
   // 공유받은 사람은 공유 버튼 숨기기
   if (localStorage.getItem('is_shared') === 'true') {
     const el = document.getElementById('shareSection');
