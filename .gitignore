@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.log
+
+# secrets — NEVER commit
+.env
+*.env
+*.secret
+credentials.json
+config.json
