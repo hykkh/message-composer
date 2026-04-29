@@ -10,34 +10,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>
-// ─── 비공개 모드 게이트 (원복: AUTH_ENABLED 를 false 로) ───
-const AUTH_ENABLED = true;
-const AUTH_HASH = '8485ee802cc628b8cbd82476133d11b57af87e00711516a703525a9af0193b12';
-const AUTH_KEY = '_auth_v1';
-
-(async function authGate() {
-  if (!AUTH_ENABLED) return;
-  if (localStorage.getItem(AUTH_KEY) === AUTH_HASH) return;
-
-  async function sha256(s) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  for (let i = 0; i < 5; i++) {
-    const pw = prompt('비밀번호');
-    if (pw === null) break;
-    if (await sha256(pw) === AUTH_HASH) {
-      localStorage.setItem(AUTH_KEY, AUTH_HASH);
-      return;
-    }
-  }
-  document.documentElement.innerHTML =
-    '<body style="background:#f5f0eb;color:#888;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,sans-serif;font-size:14px;">접근 불가</body>';
-  throw new Error('auth failed');
-})();
-</script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
